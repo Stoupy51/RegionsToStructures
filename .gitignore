@@ -1,4 +1,4 @@
 
 region/*.mca
-structures/*.nbt
+structures*
 
