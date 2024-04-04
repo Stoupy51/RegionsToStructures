@@ -20,7 +20,7 @@ structures = [file for file in os.listdir(STRUCTURES_FOLDER) if file.endswith(".
 structures = [(i, file, len(structures)) for i, file in enumerate(structures)]
 
 # Make the datapack
-with zipfile.ZipFile("structures.zip", "w", zipfile.ZIP_DEFLATED) as zf:
+with zipfile.ZipFile("structures.zip", "w", zipfile.ZIP_DEFLATED, compresslevel = 9) as zf:
 
 	# Write pack.mcmeta
 	zf.writestr(f"pack.mcmeta", f"""{{
