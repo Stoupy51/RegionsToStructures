@@ -13,29 +13,11 @@ def getAsPair(self):
 
 def indexInPalette(palette: list[nbt.TAG_Compound], block: nbt.TAG_Compound) -> int:
 	for i, b in enumerate(palette):
-		# if block['Name'].value == "minecraft:repeating_command_block":
-		# 	s1 = block.pretty_tree().replace("\n","")
-		# 	s2 = b.pretty_tree().replace("\n","")
-		# 	print(s1)
-		# 	print(s2)
 		if b["Name"].value == block["Name"].value:
 			if "Properties" in block:
-				if "Properties" in b:
-					if b['Properties'].pretty_tree() == block['Properties'].pretty_tree():
-						if "command_block" in b.pretty_tree() and i == 0:
-							s1 = block.pretty_tree().replace("\n","")
-							s2 = b.pretty_tree().replace("\n","")
-							print(s1)
-							print(s2)
-							print(i)
-						return i
+				if "Properties" in b and (b['Properties'].pretty_tree() == block['Properties'].pretty_tree()):
+					return i
 			else:
-				# if "command_block" in b.pretty_tree():
-				# 	s1 = block.pretty_tree().replace("\n","")
-				# 	s2 = b.pretty_tree().replace("\n","")
-				# 	print(s1)
-				# 	print(s2)
-				# 	print(i)
 				return i
 	return -1
 
@@ -209,7 +191,7 @@ def process_region(region_file):
 			if not new_block['nbt']:
 				del new_block['nbt']
 			
-			# Check if there is a block already at the position
+			# Check if there is a block already at the position and replace it
 			already_in = False
 			for i, b in enumerate(nbt_file['blocks']):
 				my_x, my_y, my_z = [x.value for x in new_block['pos']]
