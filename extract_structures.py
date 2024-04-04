@@ -13,10 +13,30 @@ def getAsPair(self):
 
 def indexInPalette(palette: list[nbt.TAG_Compound], block: nbt.TAG_Compound) -> int:
 	for i, b in enumerate(palette):
-		if b.pretty_tree() == block.pretty_tree():
-			if "Properties" in b and (b['Properties'].pretty_tree() == block['Properties'].pretty_tree()):
-					return i
-			return i
+		# if block['Name'].value == "minecraft:repeating_command_block":
+		# 	s1 = block.pretty_tree().replace("\n","")
+		# 	s2 = b.pretty_tree().replace("\n","")
+		# 	print(s1)
+		# 	print(s2)
+		if b["Name"].value == block["Name"].value:
+			if "Properties" in block:
+				if "Properties" in b:
+					if b['Properties'].pretty_tree() == block['Properties'].pretty_tree():
+						if "command_block" in b.pretty_tree() and i == 0:
+							s1 = block.pretty_tree().replace("\n","")
+							s2 = b.pretty_tree().replace("\n","")
+							print(s1)
+							print(s2)
+							print(i)
+						return i
+			else:
+				# if "command_block" in b.pretty_tree():
+				# 	s1 = block.pretty_tree().replace("\n","")
+				# 	s2 = b.pretty_tree().replace("\n","")
+				# 	print(s1)
+				# 	print(s2)
+				# 	print(i)
+				return i
 	return -1
 
 # Constants
@@ -189,8 +209,19 @@ def process_region(region_file):
 			if not new_block['nbt']:
 				del new_block['nbt']
 			
+			# Check if there is a block already at the position
+			already_in = False
+			for i, b in enumerate(nbt_file['blocks']):
+				my_x, my_y, my_z = [x.value for x in new_block['pos']]
+				b_x, b_y, b_z = [x.value for x in b['pos']]
+				if my_x == b_x and my_y == b_y and my_z == b_z:
+					already_in = True
+					nbt_file['blocks'][i] = new_block
+					break
+			
 			# Add block to the list
-			nbt_file['blocks'].append(new_block)
+			if not already_in:
+				nbt_file['blocks'].append(new_block)
 
 		# Write the file
 		nbt_file.write_file(path)
@@ -214,7 +245,7 @@ if __name__ == "__main__":
 
 	# Process the files
 	from multiprocessing import Pool
-	THREADS = 8
+	THREADS = 10
 	start = time.time()
 	with Pool(processes = THREADS) as pool:
 		pool.map(process_region, regions)
