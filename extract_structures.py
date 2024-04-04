@@ -163,6 +163,7 @@ def process_region(region_file):
 				nbt_file['palette'].append(block_in_palette)
 
 		# Make the blocks
+		taken_positions = []	# For optimisations
 		for x, y, z, block in structure:
 			if "Name" not in block:
 				block['Name'] = nbt.TAG_String(value = block['id'].value)
@@ -177,9 +178,11 @@ def process_region(region_file):
 			new_block['state'] = nbt.TAG_Int(indexInPalette(final_palette, block_in_palette))
 
 			# Get position
+			new_x, new_y, new_z = x - min_x, y - min_y, z - min_z
 			new_block["pos"] = nbt.TAG_List(type = nbt.TAG_Int)
-			for i in (x - min_x, y - min_y, z - min_z):
-				new_block["pos"].append(nbt.TAG_Int(i))
+			new_block["pos"].append(nbt.TAG_Int(new_x))
+			new_block["pos"].append(nbt.TAG_Int(new_y))
+			new_block["pos"].append(nbt.TAG_Int(new_z))
 			
 			# Get nbt (if any)
 			new_block["nbt"] = nbt.TAG_Compound()
@@ -192,26 +195,27 @@ def process_region(region_file):
 				del new_block["nbt"]
 			
 			# Check if there is a block already at the position and merge it
-			already_in = False
-			for i, b in enumerate(nbt_file["blocks"]):
-				my_x, my_y, my_z = [x.value for x in new_block["pos"]]
-				b_x, b_y, b_z = [x.value for x in b["pos"]]
-				if my_x == b_x and my_y == b_y and my_z == b_z:
-					already_in = True
+			if (new_x, new_y, new_z) in taken_positions:
 
-					# Copy nbt and state
-					if "nbt" in new_block:
-						if "nbt" in b:
-							for key in new_block["nbt"]:
-								b["nbt"][key] = new_block["nbt"][key]
-						else:
-							b["nbt"] = new_block["nbt"]
-					b["state"] = new_block["state"]
-					break
+				# Search for the block
+				for i, b in enumerate(nbt_file["blocks"]):
+					b_pos = tuple([x.value for x in b["pos"]])
+					if b_pos == (new_x, new_y, new_z):
+
+						# Merge: Copy nbt and state
+						if "nbt" in new_block:
+							if "nbt" in b:
+								for key in new_block["nbt"]:
+									b["nbt"][key] = new_block["nbt"][key]
+							else:
+								b["nbt"] = new_block["nbt"]
+						b["state"] = new_block["state"]
+						break
 			
-			# Add block to the list
-			if not already_in:
+			# Add block to the list and the taken positions
+			else:
 				nbt_file["blocks"].append(new_block)
+				taken_positions.append((new_x, new_y, new_z))
 
 		# Write the file
 		nbt_file.write_file(path)
