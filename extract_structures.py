@@ -217,7 +217,15 @@ def process_region(region_file):
 		nbt_file.write_file(path)
 	print(f"Region {region_counter + 1}/{total_regions}: {len(structures)} structures saved in {time.time() - start_time:.2f} seconds")
 
+def thread_regions(regions):
+	for region in sorted(regions, key = lambda x: x[0]):
+		try:
+			process_region(region)
+		except Exception as e:
+			print(f"Error during Region {region[0] + 1}/{region[2]} ({region[1]}): {e}")
+
 if __name__ == "__main__":
+	THREADS = 10
 
 	# Make structures folder
 	if os.path.exists("./structures"):
@@ -229,15 +237,18 @@ if __name__ == "__main__":
 	regions = [file for file in os.listdir("./region") if file.endswith(".mca")]
 	regions = [(i, file, len(regions)) for i, file in enumerate(regions)]
 	
-	# Shuffle regions to balance the load
-	import random
-	random.shuffle(regions)
+	# Sort regions so thread start with first regions
+	regions_per_thread = []
+	for i in range(THREADS):
+		thread_list = []
+		for j in range(i, len(regions), THREADS):
+			thread_list.append(regions[j])
+		regions_per_thread.append(thread_list)
 
 	# Process the files
 	from multiprocessing import Pool
-	THREADS = 10
 	start = time.time()
 	with Pool(processes = THREADS) as pool:
-		pool.map(process_region, regions)
+		pool.map(thread_regions, regions_per_thread)
 	print(f"\nTotal time: {time.time() - start:.2f} seconds")
 
