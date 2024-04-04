@@ -145,7 +145,7 @@ def process_region(region_file):
 		nbt_file['DataVersion'] = nbt.TAG_Int(data_version)
 		nbt_file['entities'] = nbt.TAG_List(type = nbt.TAG_Compound)
 		nbt_file['palette'] = nbt.TAG_List(type = nbt.TAG_Compound)
-		nbt_file['blocks'] = nbt.TAG_List(type = nbt.TAG_Compound)
+		nbt_file["blocks"] = nbt.TAG_List(type = nbt.TAG_Compound)
 
 		# Make the palette
 		final_palette = []
@@ -177,33 +177,41 @@ def process_region(region_file):
 			new_block['state'] = nbt.TAG_Int(indexInPalette(final_palette, block_in_palette))
 
 			# Get position
-			new_block['pos'] = nbt.TAG_List(type = nbt.TAG_Int)
+			new_block["pos"] = nbt.TAG_List(type = nbt.TAG_Int)
 			for i in (x - min_x, y - min_y, z - min_z):
-				new_block['pos'].append(nbt.TAG_Int(i))
+				new_block["pos"].append(nbt.TAG_Int(i))
 			
 			# Get nbt (if any)
-			new_block['nbt'] = nbt.TAG_Compound()
+			new_block["nbt"] = nbt.TAG_Compound()
 			for i in list(block):
 				if not(i in TO_REMOVE or "Paper" in i):
-					new_block['nbt'][i] = block[i]
+					new_block["nbt"][i] = block[i]
 
 			# If no nbt, remove
-			if not new_block['nbt']:
-				del new_block['nbt']
+			if not new_block["nbt"]:
+				del new_block["nbt"]
 			
-			# Check if there is a block already at the position and replace it
+			# Check if there is a block already at the position and merge it
 			already_in = False
-			for i, b in enumerate(nbt_file['blocks']):
-				my_x, my_y, my_z = [x.value for x in new_block['pos']]
-				b_x, b_y, b_z = [x.value for x in b['pos']]
+			for i, b in enumerate(nbt_file["blocks"]):
+				my_x, my_y, my_z = [x.value for x in new_block["pos"]]
+				b_x, b_y, b_z = [x.value for x in b["pos"]]
 				if my_x == b_x and my_y == b_y and my_z == b_z:
 					already_in = True
-					nbt_file['blocks'][i] = new_block
+
+					# Copy nbt and state
+					if "nbt" in new_block:
+						if "nbt" in b:
+							for key in new_block["nbt"]:
+								b["nbt"][key] = new_block["nbt"][key]
+						else:
+							b["nbt"] = new_block["nbt"]
+					b["state"] = new_block["state"]
 					break
 			
 			# Add block to the list
 			if not already_in:
-				nbt_file['blocks'].append(new_block)
+				nbt_file["blocks"].append(new_block)
 
 		# Write the file
 		nbt_file.write_file(path)
