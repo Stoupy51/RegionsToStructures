@@ -12,7 +12,7 @@ NAMESPACE = "regions_to_structures"
 NAME = "Regions To Structures"
 PACK_FORMAT = 26
 TICKS_BETWEEN_FORCELOAD_AND_PLACE = 20
-CHUNKS_PER_TICK = 20
+CHUNKS_PER_TICK = 5
 
 # Get all the structures
 start = time.time()

@@ -11,11 +11,19 @@ import math
 def getAsPair(self):
 	return (self >> 32, self & 0xFFFFFFFF)
 
+def indexInPalette(palette: list[nbt.TAG_Compound], block: nbt.TAG_Compound) -> int:
+	for i, b in enumerate(palette):
+		if b.pretty_tree() == block.pretty_tree():
+			if "Properties" in b and (b['Properties'].pretty_tree() == block['Properties'].pretty_tree()):
+					return i
+			return i
+	return -1
+
 # Constants
 CHUNK_DIM = 16
 REGION_DIM = 32
 STRUCT_DIM = 48
-TO_REMOVE = ("id", 'x', 'y', 'z')
+TO_REMOVE = ("Properties", "Name", "id", 'x', 'y', 'z')
 
 # Function
 def process_region(region_file):
@@ -55,7 +63,7 @@ def process_region(region_file):
 
 					states = section["block_states"]
 					yOffset = section["Y"].value * CHUNK_DIM
-					palette = states["palette"]
+					section_palette = states["palette"]
 
 					states_data = []
 					tempDataView = bytearray(8)
@@ -65,7 +73,7 @@ def process_region(region_file):
 						tempDataView[4:] = int(pair[1]).to_bytes(4, byteorder='big')
 						states_data.append(int.from_bytes(tempDataView, byteorder='big'))
 					
-					bits = max(4, math.ceil(math.log2(len(palette))))
+					bits = max(4, math.ceil(math.log2(len(section_palette))))
 					bit_mask = (1 << bits) - 1
 					state = 0
 					data = states_data[0]
@@ -77,7 +85,7 @@ def process_region(region_file):
 							data = states_data[state]
 							data_length = 64
 						palette_id = data & bit_mask
-						block_state = palette[palette_id]
+						block_state = section_palette[palette_id]
 						if block_state["Name"].value != "minecraft:air":
 							# x = c_x + (k & 0xF)
 							# y = yOffset + (k >> 8)
@@ -138,26 +146,50 @@ def process_region(region_file):
 		nbt_file['blocks'] = nbt.TAG_List(type = nbt.TAG_Compound)
 
 		# Make the palette
-		palette = []
+		final_palette = []
 		for x, y, z, block in structure:
 			if "Name" not in block:
 				block['Name'] = nbt.TAG_String(value = block['id'].value)
-			for i in list(block):
-				if i in TO_REMOVE or "Paper" in i:
-					del block[i]
-			if block not in palette:
-				palette.append(block)
-				nbt_file['palette'].append(block)
+			
+			block_in_palette = nbt.TAG_Compound()
+			block_in_palette['Name'] = block['Name']
+			if "Properties" in block:
+				block_in_palette['Properties'] = block['Properties']
+
+			if indexInPalette(final_palette, block_in_palette) == -1:
+				final_palette.append(block_in_palette)
+				nbt_file['palette'].append(block_in_palette)
 
 		# Make the blocks
 		for x, y, z, block in structure:
+			if "Name" not in block:
+				block['Name'] = nbt.TAG_String(value = block['id'].value)
+			
+			block_in_palette = nbt.TAG_Compound()
+			block_in_palette['Name'] = block['Name']
+			if "Properties" in block:
+				block_in_palette['Properties'] = block['Properties']
 			
 			# Get state (index of the block in the palette)
 			new_block = nbt.TAG_Compound()
-			new_block['state'] = nbt.TAG_Int(palette.index(block))
+			new_block['state'] = nbt.TAG_Int(indexInPalette(final_palette, block_in_palette))
+
+			# Get position
 			new_block['pos'] = nbt.TAG_List(type = nbt.TAG_Int)
 			for i in (x - min_x, y - min_y, z - min_z):
 				new_block['pos'].append(nbt.TAG_Int(i))
+			
+			# Get nbt (if any)
+			new_block['nbt'] = nbt.TAG_Compound()
+			for i in list(block):
+				if not(i in TO_REMOVE or "Paper" in i):
+					new_block['nbt'][i] = block[i]
+
+			# If no nbt, remove
+			if not new_block['nbt']:
+				del new_block['nbt']
+			
+			# Add block to the list
 			nbt_file['blocks'].append(new_block)
 
 		# Write the file
@@ -167,11 +199,10 @@ def process_region(region_file):
 if __name__ == "__main__":
 
 	# Make structures folder
-	if not os.path.exists("./structures"):
-		os.mkdir("./structures")
-	else:
-		for file in os.listdir("./structures"):
-			os.remove("./structures/" + file)
+	if os.path.exists("./structures"):
+		import shutil
+		shutil.rmtree("./structures")
+	os.mkdir("./structures")
 
 	# Get all the regions
 	regions = [file for file in os.listdir("./region") if file.endswith(".mca")]
@@ -183,7 +214,7 @@ if __name__ == "__main__":
 
 	# Process the files
 	from multiprocessing import Pool
-	THREADS = 10
+	THREADS = 8
 	start = time.time()
 	with Pool(processes = THREADS) as pool:
 		pool.map(process_region, regions)
